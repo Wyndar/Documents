@@ -1,41 +1,48 @@
 #! /bin/bash
 
-PSQL="psql --username=freecodecamp --dbname=worldcup --no-align --tuples-only -c"
+if [[ $1 == "test" ]]
+then
+  PSQL="psql --username=postgres --dbname=worldcuptest -t --no-align -c"
+else
+  PSQL="psql --username=freecodecamp --dbname=worldcup -t --no-align -c"
+fi
 
 # Do not change code above this line. Use the PSQL variable above to query your database.
+echo $($PSQL "TRUNCATE teams, games")
+#due to a stupid bug which cost me hours, the code had to be edited... severely
+cat games.csv | while IFS="," read YEAR ROUND WINNER OPPONENT WINNER_GOALS OPPONENT_GOALS
+do
+  if [[ $YEAR != "year" ]] && [[ $ROUND != "ROUND" ]] &&  [[ $WINNER != "winner" ]] && [[ $OPPONENT != "opponent" ]] && [[ $WINNER_GOALS != "winner_goals" ]] && [[ $OPPONENT_GOALS != "opponent_goals" ]]
+  then
+    WINNER_ID=$($PSQL "SELECT team_id FROM teams WHERE name='$WINNER'")
+    if [[ -z $WINNER_ID ]]
+    then
+      #INSERT_WINNER=
+      echo $($PSQL "INSERT INTO teams(name) VALUES('$WINNER')")
+      #if [[ $INSERT_WINNER = "INSERT 0 1" ]]
+      #then
+        WINNER_ID=$($PSQL "SELECT team_id FROM teams WHERE name='$WINNER'")
+        #echo Inserted $WINNER into teams
+      #fi
+    fi
 
-echo -e "\nTotal number of goals in all games from winning teams:"
-echo "$($PSQL "SELECT SUM(winner_goals) FROM games")"
+    OPPONENT_ID=$($PSQL "SELECT team_id FROM teams WHERE name='$OPPONENT'")
+    if [[ -z $OPPONENT_ID ]]
+    then
+      #INSERT_OPPONENT=
+      echo $($PSQL "INSERT INTO teams(name) VALUES('$OPPONENT')")
+      #if [[ $INSERT_OPPONENT = "INSERT 0 1" ]]
+      #then
+        OPPONENT_ID=$($PSQL "SELECT team_id FROM teams WHERE name='$OPPONENT'")
+        #echo Inserted $OPPONENT into teams
+      #fi
+    fi
 
-echo -e "\nTotal number of goals in all games from both teams combined:"
-echo "$($PSQL "SELECT SUM(winner_goals + opponent_goals) FROM games")"
-
-echo -e "\nAverage number of goals in all games from the winning teams:"
-echo "$($PSQL "SELECT AVG(winner_goals) FROM games")"
-
-echo -e "\nAverage number of goals in all games from the winning teams rounded to two decimal places:"
-echo "$($PSQL "SELECT ROUND(AVG(winner_goals), 2) FROM games")"
-
-echo -e "\nAverage number of goals in all games from both teams:"
-echo "$($PSQL "SELECT AVG(winner_goals + opponent_goals) FROM games")"
-
-echo -e "\nMost goals scored in a single game by one team:"
-echo "$($PSQL "SELECT MAX(winner_goals) FROM games")"
-
-echo -e "\nNumber of games where the winning team scored more than two goals:"
-echo "$($PSQL "SELECT COUNT(winner_goals) FROM games WHERE winner_goals>2")"
-
-echo -e "\nWinner of the 2018 tournament team name:"
-echo "$($PSQL "SELECT name FROM games LEFT JOIN teams ON games.winner_id=teams.team_id WHERE round='Final' AND year=2018")"
-
-echo -e "\nList of teams who played in the 2014 'Eighth-Final' round:"
-echo "$($PSQL "SELECT DISTINCT(name) FROM games LEFT JOIN teams ON games.winner_id=teams.team_id WHERE round='Eighth-Final' AND year=2014 UNION ALL SELECT DISTINCT(name) FROM games LEFT JOIN teams ON games.opponent_id=teams.team_id WHERE round='Eighth-Final' AND year=2014 ORDER BY name")"
-
-echo -e "\nList of unique winning team names in the whole data set:"
-echo "$($PSQL "SELECT DISTINCT(name) FROM games LEFT JOIN teams ON games.winner_id=teams.team_id ORDER BY name")"
-
-echo -e "\nYear and team name of all the champions:"
-echo "$($PSQL "SELECT year, name FROM games LEFT JOIN teams ON games.winner_id=teams.team_id WHERE round='Final' ORDER BY year")"
-
-echo -e "\nList of teams that start with 'Co':"
-echo "$($PSQL "SELECT name FROM teams WHERE name LIKE 'Co%' ORDER BY name")"
+    #GAMES_INSERT=
+    echo $($PSQL "INSERT INTO games(year, round, winner_id, opponent_id, winner_goals, opponent_goals) VALUES($YEAR, '$ROUND', $WINNER_ID, $OPPONENT_ID, $WINNER_GOALS, $OPPONENT_GOALS)")
+    #if [[ $GAMES_INSERT = "INSERT 0 1" ]]
+    #then
+      #echo Inserted $ROUND of $YEAR, $WINNER $WINNER_GOALS:$OPPONENT_GOALS $OPPONENT into games
+    #fi
+  fi
+done
